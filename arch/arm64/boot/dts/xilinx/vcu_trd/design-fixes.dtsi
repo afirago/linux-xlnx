@@ -1,0 +1,212 @@
+
+#ifdef CONFIG_HDMI_RX_MULTI_STREAM
+#include "vcap-hdmi_2.dtsi"
+#include "vcap-hdmi_3.dtsi"
+#include "vcap-hdmi_4.dtsi"
+#include "vcap-hdmi_5.dtsi"
+#include "vcap-hdmi_6.dtsi"
+#include "vcap-hdmi_7.dtsi"
+#endif
+
+#ifdef CONFIG_CSI
+#include "li-imx274mipi-fmc.dtsi"
+#endif
+
+#ifdef CONFIG_HDMI_TX
+#include "hdmi-misc.dtsi"
+#endif
+
+#ifdef CONFIG_SDX
+#include "xlnk.dtsi"
+#endif
+
+
+#include "apm.dtsi"
+
+&amba_pl {
+        vid_stream_clk: vid_stream_clk {
+                compatible = "fixed-clock";
+                #clock-cells = <0>;
+                clock-frequency = <300000000>;
+        };
+
+        vid_s_axi_clk: vid_s_axi_clk {
+                compatible = "fixed-clock";
+                #clock-cells = <0>;
+                clock-frequency = <99990000>;
+        };
+};
+
+
+
+#if defined(CONFIG_HDMI_RX) || defined(CONFIG_HDMI_TX)
+#if !defined(CONFIG_10G_ETHERNET)
+&vid_phy_controller {
+        clock-names = "axi-lite", "dru-clk";
+        clocks = <&vid_s_axi_clk>, <&si570_2>;
+};
+#endif
+
+#if defined(CONFIG_10G_ETHERNET)
+&vid_phy_controller {
+        clock-names = "axi-lite", "dru-clk";
+        clocks = <&vid_s_axi_clk>, <&si5328 0>;
+};
+#endif
+
+&mpsoc_ss_hdmi_ctrl_iic {
+        clocks = <&vid_s_axi_clk>;
+};
+#endif
+
+#if defined(CONFIG_TPG)
+&tpg_input_v_tpg_1 {
+        compatible = "xlnx,v-tpg-7.0", "xlnx,v-tpg-5.0";
+};
+&tpg_port0 {
+        xlnx,video-format = <0x3>;
+};
+#endif
+
+#if defined(CONFIG_HDMI_RX)
+&hdmi_input_v_hdmi_rx_ss_0 {
+	clock-names = "axi-lite", "video";
+	clocks = <&vid_s_axi_clk>, <&vid_stream_clk>;
+};
+
+&hdmi_input_v_proc_ss_0 {
+	compatible = "xlnx,v-vpss-scaler";
+};
+#endif
+
+
+
+#if defined(CONFIG_HDMI_RX_MULTI_STREAM)
+&axi_intc_0 {
+	interrupt-parent = <&gic>;
+	interrupts = <0 108 4>;
+};
+#endif
+
+#if defined(CONFIG_HDMI_TX)
+&hdmi_output_v_hdmi_tx_ss_0 {
+	clock-names = "axi-lite", "video", "txref-clk", "retimer-clk";
+	clocks = <&vid_s_axi_clk>, <&vid_stream_clk>, <&si5319 0>, <&dp159>;
+};
+
+&hdmi_output_v_mix_0 {
+	/delete-property/ clock-names;
+	clocks = <&si5319 0>;
+	xlnx,dma-addr-width = <32>;
+};
+
+
+#if !defined(CONFIG_HDMI_RX_MULTI_STREAM)
+&xx_mix_master {
+        /delete-property/ xlnx,layer-primary;
+};
+&xx_mix_overlay_7 {
+        xlnx,layer-primary;
+};
+#endif
+
+#if defined(CONFIG_HDMI_RX_MULTI_STREAM)
+&xx_mix_master {
+        /delete-property/xlnx,layer-streaming;
+        /delete-property/dma-names;
+        /delete-property/dmas;
+};
+#endif
+#endif
+
+#if defined(CONFIG_CSI)
+&sensor_iic_0 {
+        clocks = <&vid_s_axi_clk>;
+};
+&mipi_csi2_rx_v_proc_ss_scaler {
+	compatible = "xlnx,v-vpss-scaler";
+};
+
+&mipi_csi2_rx_v_proc_ss_csc {
+	compatible = "xlnx,v-vpss-csc";
+};
+
+&mipi_csi2_rx_mipi_csi2_rx_subsystem_0 {
+	compatible = "xlnx,mipi-csi2-rx-subsystem-2.0";
+};
+
+&csiss_in {
+	data-lanes = <1 2 3 4>;
+	remote-endpoint = <&sensor_out>;
+};
+#endif
+
+#if defined(CONFIG_10G_ETHERNET)
+&i2c1 {
+    i2c-mux@74 {
+    /delete-node/   i2c@3;
+
+    };
+};
+#endif
+
+
+#if defined(CONFIG_SDI_RX)
+&sdi_rx_input_v_proc_ss_0 {
+    reset-gpios = <&gpio 78 1>;	
+    compatible = "xlnx,v-vpss-scaler";
+};
+&scaler_port0 {
+    xlnx,video-format = <0x2>;
+    xlnx,video-width = <0x8>;
+};
+&scaler_port1 {
+    xlnx,video-format = <0x3>;
+    xlnx,video-width = <0x8>;
+};
+#endif
+
+#if defined(CONFIG_SDI_TX)
+&sdi_tx_output_v_mix_0 {
+    reset-gpios = <&gpio 98 1>;
+    xlnx,dma-addr-width=<32>;
+    xlnx,logo-layer; 
+};
+
+&xx_mix_master {
+    xlnx,vformat = "YUYV";
+    /delete-property/ xlnx,layer-streaming ;  
+};
+
+&xx_mix_overlay_3 {
+    xlnx,layer-max-width = <0xf00>;
+    xlnx,layer-max-height = <0x870>;
+};
+
+&xx_mix_logo {
+    xlnx,logo-height = <0x40>;
+    xlnx,logo-width = <0x40>;
+};
+#endif
+
+#if defined(CONFIG_SDI_VCU)
+&vcu_0 {
+	reset-gpios = <&gpio 119 0>;
+};
+#endif
+
+#if defined(CONFIG_HDMI_AUDIO)
+    &audio_ss_0_audio_formatter_1 {
+        xlnx,tx = <&hdmi_output_v_hdmi_tx_ss_0>;
+        xlnx,rx = <&hdmi_input_v_hdmi_rx_ss_0>;
+    };
+    /delete-node/ &audio_ss_0_axi_gpio_0;
+    &hdmi_input_v_hdmi_rx_ss_0 {
+        xlnx,snd-pcm = <&audio_ss_0_audio_formatter_1>;
+    };
+
+    &hdmi_output_v_hdmi_tx_ss_0 {
+        xlnx,snd-pcm = <&audio_ss_0_audio_formatter_1>;
+    };
+#endif
+
